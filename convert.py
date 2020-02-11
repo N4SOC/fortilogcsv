@@ -13,9 +13,8 @@ try:
     log_data = open(filename, "r")
 except:
     raise Exception("Invalid input file")
-
-pattern = re.compile(
-    '(\w+)(?:=)(?:"{1,2}([\w\-\.:\ =]+)"{1,3})|(\w+)=(?:([\w\-\.:\=]+))')  # Regex matches "field=value" or "field=""more words""" syntax
+# Regex matches "field=value" or "field=""more words""" syntax
+pattern = re.compile('(\w+)(?:=)((?:\"{1,2}([\w\-\.:\ =]+))\"|(\S*))')
 events = []  # List to hold individual event dicts
 
 for line in log_data:
@@ -36,7 +35,7 @@ for row in events:
 print("[+] Writing CSV")
 newfilename = (filename.split(
     "/")[len(filename.split("/"))-1].split('.')[0])+'.csv'  # Get base file name from logfile
-with open(newfilename, 'w') as fileh:
+with open(newfilename, 'w', newline='') as fileh:
     csvfile = csv.DictWriter(fileh, headers)  # Write headers
     csvfile.writeheader()
     for row in events:
