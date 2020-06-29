@@ -14,7 +14,7 @@ try:
 except:
     raise Exception("Invalid input file")
 # Regex matches "field=value" or "field=""more words""" syntax
-pattern = re.compile('(\w+)(?:=)((?:\"{1,2}([\w\-\.:\ =]+))\"|(\S*))')
+pattern = re.compile('(\w+)(?:=)(?:"{1,3}([\w\-\.:\ =]+)"{1,3})|(\w+)=(?:([\w\-\.:\=]+))')
 events = []  # List to hold individual event dicts
 
 for line in log_data:
@@ -22,7 +22,10 @@ for line in log_data:
     match = pattern.findall(line)  # Find all regex matches on each line
     for group in match:
         # add a key,value pair to the dict for each key=value group
-        event[group[0]] = group[1]
+        if group[0] != "":
+            event[group[0]] = group[1]
+        else:
+            event[group[2]] = group[3]
     events.append(event)  # Add dict to list
 
 print("[+] Processing log fields")
