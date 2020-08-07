@@ -14,7 +14,7 @@ try:
 except:
     raise Exception("Invalid input file")
 # Regex matches "field=value" or "field=""more words""" syntax
-pattern = re.compile('(\w+)(?:=)(?:"{1,3}([\w\-\.:\ =\+/]+)"{1,3})|(\w+)=(?:([\w\-\.:\={}/]+))')
+pattern = re.compile('(\w+)(?:=)(?:"{1,3}([\w\-\.:\ =\+/%]+)"{1,3})|(\w+)=(?:([\w\-\.:\={}/]+))')
 events = []  # List to hold individual event dicts
 
 for line in log_data:
