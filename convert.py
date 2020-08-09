@@ -2,6 +2,10 @@ import csv
 import re
 import sys
 
+#fetch filename
+import os.path
+
+
 if len(sys.argv) > 1:
     filename = str(sys.argv[1])
 else:
@@ -36,8 +40,9 @@ for row in events:
             headers.append(key)  # Compile a deduped list of headers
 
 print("[+] Writing CSV")
-newfilename = (filename.split(
-    "/")[len(filename.split("/"))-1].split('.')[0])+'.csv'  # Get base file name from logfile
+
+newfilename = os.path.splitext(filename)[0]+'.csv' # Get base file name from logfile
+
 #Added the newline option to prevent blank rows from outputting to CSV
 with open(newfilename, 'w', newline='') as fileh:
     csvfile = csv.DictWriter(fileh, headers)  # Write headers
