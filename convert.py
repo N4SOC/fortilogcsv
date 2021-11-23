@@ -1,6 +1,7 @@
 import csv
 import re
 import sys
+import codecs
 
 if len(sys.argv) > 1:
     filename = str(sys.argv[1])
@@ -10,7 +11,7 @@ else:
 # Open log file for read if exists
 print("[+] Reading logs from " + filename)
 try:
-    log_data = open(filename, "r")
+    log_data = codecs.open(filename, "r", encoding="UTF-8")
 except:
     raise Exception("Invalid input file")
 # Regex matches "field=value" or "field=""more words""" syntax
