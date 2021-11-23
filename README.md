@@ -7,8 +7,8 @@ This script pulls out each field and compiles the events into a single CSV file
 ### Usage
 Example: Export logs from Fortianalyzer as "csv"  
 
-![Export Dialog](https://rothe.uk/images/forti.png)  
+![Export Dialog](https://direct.rothe.uk/images/forti.png)  
 
 ````Python3 convert.py path/to/fortigate.log````
 
-![Sample Output](https://rothe.uk/images/forti2.png)  
+![Sample Output](https://direct.rothe.uk/images/forti2.png)  
