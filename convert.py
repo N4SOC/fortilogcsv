@@ -40,7 +40,7 @@ print("[+] Writing CSV")
 newfilename = (filename.split(
     "/")[len(filename.split("/"))-1].split('.')[0])+'.csv'  # Get base file name from logfile
 #Added the newline option to prevent blank rows from outputting to CSV
-with open(newfilename, 'w', newline='') as fileh:
+with open(newfilename, 'w', newline='', encoding='utf-8') as fileh:
     csvfile = csv.DictWriter(fileh, headers)  # Write headers
     csvfile.writeheader()
     for row in events:
