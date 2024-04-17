@@ -5,10 +5,9 @@ Fortigate logs export in a "field1=value","field2=value" format which isn't easi
 This script pulls out each field and compiles the events into a single CSV file
 
 ### Usage
-Example: Export logs from Fortianalyzer as "csv"  
-
-![Export Dialog](https://direct.rothe.uk/images/forti.png)  
+1. Export .log file from Fortigate
+2. Convert log to csv:
 
 ````Python3 convert.py path/to/fortigate.log````
 
-![Sample Output](https://direct.rothe.uk/images/forti2.png)  
+
