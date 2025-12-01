@@ -1,101 +1,163 @@
 import argparse
-import codecs
 import csv
 import re
 import sys
+import logging
 from pathlib import Path
+from typing import Dict, List, Tuple
 
-parser = argparse.ArgumentParser(
-    description="Script for converting fortigate CSV export to true CSV",
-    prog="forticonvert.py",
-    usage="%(prog)s --infile=filepath --outfile=filepath",
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(message)s",
 )
-parser.add_argument(
-    "--infile", type=str, help="Fortigate export file to convert", required=True
-)
-parser.add_argument(
-    "--outfile", type=str, help="Location to save converted CSV file", required=True
-)
+logger = logging.getLogger("fortilog_csv")
 
-args = parser.parse_args()
+_COLOUR_GREEN = "\033[32m"
+_COLOUR_BLUE = "\033[34m"
+_COLOUR_YELLOW = "\033[93m"
+_COLOUR_END = "\033[0m"
 
 
-def print_success(message):
-    colourGREEN = "\33[32m"
-    colourEND = "\033[0m"
-    print(f"🟢 {colourGREEN}{message}{colourEND}")
+def print_success(message, *args) -> None:
+    if args:
+        message = message % args
+    logger.info("🟢 %s%s%s", _COLOUR_GREEN, message, _COLOUR_END)
 
 
-def print_info(message):
-    colourBLUE = "\33[34m"
-    colourEND = "\033[0m"
-    print(f"🔵 {colourBLUE}{message}{colourEND}")
+def print_info(message, *args) -> None:
+    if args:
+        message = message % args
+    logger.info("🔵 %s%s%s", _COLOUR_BLUE, message, _COLOUR_END)
 
 
-def print_warn(message):
-    colourRED = "\033[91m"
-    colourEND = "\033[0m"
-    print(f"🟠 {colourRED}{message}{colourEND}")
+def print_warn(message, *args) -> None:
+    if args:
+        message = message % args
+    logger.warning("🟠 %s%s%s", _COLOUR_YELLOW, message, _COLOUR_END)
 
-
-# Check for existance of input and output files
-inputFile = Path(args.infile)
-if not inputFile.is_file():
-    print_warn("Source file not found")
-    sys.exit("Cannot continue without valid input data, program exiting")
-
-outputFile = Path(args.outfile)
-if inputFile.is_file():
-    print_warn("Destination file already exists - script will overwrite this")
-
-
-# Open log file for read if exists
-print_info("Reading logs from " + args.infile)
-try:
-    log_data = codecs.open(args.infile, "r", encoding="UTF-8")
-except:
-    print_warn("Invalid input file specified")
-    sys.exit("Cannot continue without valid input data, program exiting")
 
 # Regex matches "field=value" or "field=""more words""" syntax
-pattern = re.compile(
-    '(\w+)(?:=)(?:"{1,3}([\w\-\.:\ =]+)"{1,3})|(\w+)=(?:([\w\-\.:\=]+))'
+PATTERN = re.compile(
+    r'(\w+)(?:=)(?:"{1,3}([^"]+)"{1,3})|(\w+)=(?:([^\s]+))'
 )
-events = []  # List to hold individual event dicts
 
-print_info("Parsing CSV and extracting data")
-try:
-    for line in log_data:
+
+def write_to_file(headers: List[str], events: List[Dict[str, str]], outfile: str) -> None:
+    """Write events to the specified output file, using the specified headers
+
+    Args:
+        headers (List[str]): headers to be used
+        events (List[Dict[str, str]]): events to be written to the file
+        outfile (str): output file
+    """
+    print_info("Writing CSV to %s", outfile)
+
+    # Added the newline option to prevent blank rows from outputting to CSV
+    with open(outfile, "w", newline="", encoding="UTF-8") as fileh:
+        csvfile = csv.DictWriter(fileh, headers)
+        csvfile.writeheader()  # Write headers
+        for row in events:
+            csvfile.writerow(row)  # write data
+
+    print_success(
+        "CSV write to %s done: rows=%d, cols=%d",
+        outfile,
+        len(events),
+        len(headers)
+    )
+
+
+def process_log_lines(lines: List[str]) -> Tuple[List[Dict[str, str]], List[str]]:
+    """Process log lines
+
+    Args:
+        lines (List[str]): Log lines to be processed
+
+    Returns:
+        Tuple[List[Dict[str, str]], List[str]]: Returns tuple of events and headers
+    """
+    events: List[Dict[str, str]] = []  # List to hold individual event dicts
+    headers: List[str] = []
+    headers_seen: set[str] = set()
+
+    print_info("Processing log lines")
+    for line in lines:
         event = {}
-        match = pattern.findall(line)  # Find all regex matches on each line
+        match = PATTERN.findall(line)  # Find all regex matches on each line
         for group in match:
             # add a key,value pair to the dict for each key=value group
             if group[0] != "":
-                event[group[0]] = group[1]
+                key, val = group[0], group[1]
             else:
-                event[group[2]] = group[3]
+                key, val = group[2], group[3]
+            event[key] = val
+
+            if key not in headers_seen:
+                headers_seen.add(key)
+                headers.append(key)
         events.append(event)  # Add dict to list
-except IndexError:
-    print_warn("Errors during data extraction - CSV doesn't match expected format")
-    sys.exit("Cannot continue without valid input data, program exiting")
-except UnicodeDecodeError:
-    print_warn("Errors during data extraction - non UTF8 data in file")
-    sys.exit("Cannot continue without valid input data, program exiting")
+    return events, headers
 
-print_info("Processing log fields")
-headers = []
-for row in events:
-    for key in row.keys():
-        if not key in headers:
-            headers.append(key)  # Compile a deduped list of headers
-print_success(f"{len(headers)} fields identified")
 
-print_info("Writing new CSV")
-# Added the newline option to prevent blank rows from outputting to CSV
-with open(args.outfile, "w", newline="") as fileh:
-    csvfile = csv.DictWriter(fileh, headers)  # Write headers
-    csvfile.writeheader()
-    for row in events:
-        csvfile.writerow(row)  # write data
+def convert_file(infile: str, outfile: str) -> None:
+    """Convert a single Forti log file to CSV.
 
-print_success(f"Finished {str(len(events))} rows written to {args.outfile}")
+    Args:
+        infile (str): input file path
+        outfile (str): output file path
+    """
+    print_info("Reading logs from %s", infile)
+
+    try:
+        with open(infile, "r", encoding="UTF-8") as f:
+            lines = f.readlines()
+    except UnicodeDecodeError:
+        print_warn("Errors during data extraction - non UTF8 data in file")
+        sys.exit("Cannot continue without valid input data, program exiting")
+    except:
+        print_warn("Unexpected error reading input file")
+        sys.exit("Cannot continue without valid input data, program exiting")
+
+    events, headers = process_log_lines(lines)
+
+    write_to_file(headers, events, outfile)
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(
+        description="Script for converting fortigate CSV export to true CSV",
+        prog="forticonvert.py",
+        usage="%(prog)s --infile=filepath --outfile=filepath",
+    )
+    parser.add_argument(
+        "--infile", type=str, help="Fortigate export file to convert", required=True
+    )
+    parser.add_argument(
+        "--outfile", type=str, help="Location to save converted CSV file", required=True
+    )
+    args = parser.parse_args()
+
+    # Check for existance of input and output files
+    inputFile = Path(args.infile)
+    if not inputFile.is_file():
+        print_warn("Source file not found")
+        sys.exit("Cannot continue without valid input data, program exiting")
+
+    outputFile = Path(args.outfile)
+
+    if not outputFile.parent.is_dir():
+        print_warn("Output directory does not exist")
+        sys.exit("Cannot continue without valid output path, program exiting")
+
+    if outputFile.exists() and outputFile.is_dir():
+        print_warn("Output path is a directory, please specify a file")
+        sys.exit("Cannot continue without valid output file, program exiting")
+
+    if outputFile.is_file():
+        print_warn("Destination file already exists - script will overwrite this")
+
+    convert_file(args.infile, args.outfile)
+
+
+if __name__ == "__main__":
+    main()
