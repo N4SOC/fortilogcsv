@@ -59,7 +59,7 @@ except:
 
 # Regex matches "field=value" or "field=""more words""" syntax
 pattern = re.compile(
-    '(\w+)(?:=)(?:"{1,3}([\w\-\.:\ =]+)"{1,3})|(\w+)=(?:([\w\-\.:\=]+))'
+    r'(\w+)(?:=)(?:"{1,3}([^"]+)"{1,3})|(\w+)=(?:([^\s]+))'
 )
 events = []  # List to hold individual event dicts
 
